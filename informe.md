@@ -376,6 +376,87 @@ FROM '/ruta/al/tp/orden.csv'
 WITH (FORMAT csv, HEADER, DELIMITER ',', ENCODING 'UTF8');
 ```
 
+## 4.e. Función reporte_taller
+
+```sql
+CREATE OR REPLACE FUNCTION reporte_taller(p_desde DATE, p_hasta DATE) RETURNS VOID
+AS $$
+DECLARE
+    v_rec           RECORD;
+    v_especialidad  mecanico.especialidad%TYPE;   -- especialidad que se está listando
+    v_nombre        VARCHAR(50);
+    v_sub_cant      INT := 0;
+    v_sub_horas     DECIMAL(10,1) := 0;
+    v_tot_cant      INT := 0;
+    v_tot_horas     DECIMAL(10,1) := 0;
+
+    -- un renglón por mecánico con órdenes cerradas en el período, ordenados por
+    -- especialidad y, dentro de cada una, por horas (mayor a menor) y legajo
+    c_reporte CURSOR FOR
+        SELECT m.especialidad, m.legajo, m.nombre,
+               COUNT(*) AS cant_ordenes, SUM(o.horas) AS total_horas
+        FROM orden o JOIN mecanico m ON o.legajo = m.legajo
+        WHERE o.fecha_cierre BETWEEN p_desde AND p_hasta
+        GROUP BY m.especialidad, m.legajo, m.nombre
+        ORDER BY m.especialidad, total_horas DESC, m.legajo;
+BEGIN
+    IF p_desde > p_hasta THEN
+        RAISE EXCEPTION 'Período inválido: la fecha desde (%) es posterior a la fecha hasta (%)',
+                        p_desde, p_hasta;
+    END IF;
+
+    OPEN c_reporte;
+    LOOP
+        FETCH c_reporte INTO v_rec;
+        EXIT WHEN NOT FOUND;
+
+        -- el encabezado se muestra recién cuando aparece la primera fila,
+        -- así un período sin órdenes cerradas no muestra nada
+        IF v_especialidad IS NULL THEN
+            RAISE NOTICE '======== REPORTE DE ÓRDENES CERRADAS ========';
+            RAISE NOTICE '   Período: % a %', p_desde, p_hasta;
+        END IF;
+
+        -- cambio de especialidad: subtotal de la anterior y encabezado de la nueva
+        IF v_especialidad IS NULL OR v_rec.especialidad <> v_especialidad THEN
+            IF v_especialidad IS NOT NULL THEN
+                RAISE NOTICE '   -- subtotal %: % órdenes, % h',
+                             v_especialidad, v_sub_cant, v_sub_horas;
+                v_sub_cant := 0;
+                v_sub_horas := 0;
+            END IF;
+            RAISE NOTICE '';
+            RAISE NOTICE '== Especialidad: % ==', v_rec.especialidad;
+            v_especialidad := v_rec.especialidad;
+        END IF;
+
+        -- se completa el nombre con espacios para que las columnas queden alineadas
+        v_nombre := v_rec.nombre;
+        WHILE LENGTH(v_nombre) < 18 LOOP
+            v_nombre := v_nombre || ' ';
+        END LOOP;
+
+        RAISE NOTICE '   [%] % % órdenes   % h',
+                     v_rec.legajo, v_nombre, v_rec.cant_ordenes, v_rec.total_horas;
+
+        v_sub_cant  := v_sub_cant  + v_rec.cant_ordenes;
+        v_sub_horas := v_sub_horas + v_rec.total_horas;
+        v_tot_cant  := v_tot_cant  + v_rec.cant_ordenes;
+        v_tot_horas := v_tot_horas + v_rec.total_horas;
+    END LOOP;
+    CLOSE c_reporte;
+
+    -- subtotal de la última especialidad y total general (solo si hubo filas)
+    IF v_especialidad IS NOT NULL THEN
+        RAISE NOTICE '   -- subtotal %: % órdenes, % h',
+                     v_especialidad, v_sub_cant, v_sub_horas;
+        RAISE NOTICE '';
+        RAISE NOTICE '======== TOTAL: % órdenes, % h ========', v_tot_cant, v_tot_horas;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+```
+
 ---
 
 ## Dificultades encontradas y cómo se resolvieron
