@@ -1,3 +1,9 @@
+# ACA ESTA TODO LO DEL WORD, CON ALGUNOS DETALLES CAMBIADOS QUE ADJUNTE EN dificultades.md
+# Les dejo el link del informe real a presentar que estoy escribiendo a mano con mucho amor
+
+https://docs.google.com/document/d/1bU09rAHNVG929kJGhFLkLhJZLpwCds_dgv5I3mfij9o/edit?usp=sharing
+
+
 # 3.a. Análisis de preservación de dependencias funcionales
 
 Se parte de la relación original:
@@ -345,7 +351,7 @@ CREATE TEMPORARY TABLE asignacion_plana
 );
 
 COPY asignacion_plana
-FROM '/ruta/al/tp/asignacion.csv'
+FROM 'C:/Users/mrese/OneDrive/Escritorio/INFORMATICA/BD/TP-Especial/copy/asignacion.csv'
 WITH (FORMAT csv, HEADER, DELIMITER ',', ENCODING 'UTF8');
 
 -- un vehículo aparece una vez por cada mecánico asignado, y un mecánico una vez
@@ -372,7 +378,7 @@ DROP TABLE asignacion_plana;
 -- Los campos vacíos se cargan como NULL.
 COPY orden (nro_orden, patente, legajo, descripcion, fecha_apertura,
             fecha_inicio, fecha_cierre, horas)
-FROM '/ruta/al/tp/orden.csv'
+FROM 'C:/Users/mrese/OneDrive/Escritorio/INFORMATICA/BD/TP-Especial/copy/orden.csv'
 WITH (FORMAT csv, HEADER, DELIMITER ',', ENCODING 'UTF8');
 ```
 
